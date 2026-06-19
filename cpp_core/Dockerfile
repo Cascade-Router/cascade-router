@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     curl \
     git \
+    libssl-dev \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -45,7 +46,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    libssl3 \
     libstdc++6 \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # ONNX Runtime shared library

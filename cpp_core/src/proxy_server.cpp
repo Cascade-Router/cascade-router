@@ -6,8 +6,8 @@
 
  * Tokenizes prompts, runs ONNX embedding inference, applies logistic
 
- * regression routing weights, mutates the upstream JSON model field, and returns
- * the rewritten payload (mock forward for local testing).
+ * regression routing weights, mutates the upstream JSON model field, and forwards
+ * the request to OpenAI when OpenSSL is available (Docker/Linux).
 
  *
 
@@ -29,11 +29,9 @@
 
 #endif
 
-
+// CPPHTTPLIB_OPENSSL_SUPPORT is set by CMake when OpenSSL is linked (Docker/Linux).
 
 #include "tokenizer.hpp"
-
-
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -754,7 +752,81 @@ std::string extract_last_user_content(std::string_view body, std::string& error)
 
 }
 
+void handle_chat_completions(
+    const httplib::Request& req,
+    httplib::Response& res,
+    RoutingBrain& brain) {
+    std::string parse_error;
+    const std::string prompt = extract_last_user_content(req.body, parse_error);
+    if (prompt.empty() && !parse_error.empty()) {
+        res.status = 400;
+        res.set_content(
+            std::string("{\"error\":\"") + json_escape(parse_error) + "\"}",
+            "application/json");
+        return;
+    }
 
+    const auto result = brain.run_inference(prompt);
+    const std::string target_model = select_target_model(result.p_success);
+
+    std::string mutated_body;
+    try {
+        mutated_body = mutate_request_payload(req.body, target_model);
+    } catch (const nlohmann::json::exception& ex) {
+        res.status = 400;
+        res.set_content(
+            std::string("{\"error\":\"") + json_escape(ex.what()) + "\"}",
+            "application/json");
+        return;
+    }
+
+    res.set_header("X-Cascade-Latency", format_latency_header(result.latency_ms));
+
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+    const auto auth_it = req.headers.find("Authorization");
+    if (auth_it == req.headers.end()) {
+        res.status = 401;
+        res.set_content(
+            "{\"error\":\"Missing Authorization header (OpenAI API key).\"}",
+            "application/json");
+        return;
+    }
+
+    httplib::SSLClient cli("api.openai.com", 443);
+    cli.set_connection_timeout(30, 0);
+    cli.set_read_timeout(120, 0);
+    cli.enable_server_certificate_verification(true);
+
+    httplib::Headers upstream_headers = {
+        {"Content-Type", "application/json"},
+        {"Authorization", auth_it->second},
+    };
+
+    auto upstream = cli.Post(
+        "/v1/chat/completions",
+        upstream_headers,
+        mutated_body,
+        "application/json");
+
+    if (!upstream) {
+        res.status = 502;
+        res.set_content(
+            "{\"error\":\"Upstream request to OpenAI failed.\"}",
+            "application/json");
+        return;
+    }
+
+    res.status = upstream->status;
+    const std::string content_type = upstream->get_header_value("Content-Type");
+    res.set_content(
+        upstream->body,
+        content_type.empty() ? "application/json" : content_type);
+#else
+    // Local Windows builds without OpenSSL: return mutated payload for testing.
+    res.status = 200;
+    res.set_content(mutated_body, "application/json");
+#endif
+}
 
 }  // namespace
 
@@ -793,55 +865,7 @@ int main(int argc, char* argv[]) {
 
 
         server.Post("/v1/chat/completions", [brain](const httplib::Request& req, httplib::Response& res) {
-
-            std::string parse_error;
-
-            const std::string prompt = extract_last_user_content(req.body, parse_error);
-
-            if (prompt.empty() && !parse_error.empty()) {
-
-                res.status = 400;
-
-                res.set_content(
-
-                    std::string("{\"error\":\"") + json_escape(parse_error) + "\"}",
-
-                    "application/json");
-
-                return;
-
-            }
-
-
-
-            const auto result = brain->run_inference(prompt);
-
-            const std::string target_model = select_target_model(result.p_success);
-
-
-
-            try {
-
-                const std::string mutated_body = mutate_request_payload(req.body, target_model);
-
-                res.status = 200;
-
-                res.set_header("X-Cascade-Latency", format_latency_header(result.latency_ms));
-
-                res.set_content(mutated_body, "application/json");
-
-            } catch (const nlohmann::json::exception& ex) {
-
-                res.status = 400;
-
-                res.set_content(
-
-                    std::string("{\"error\":\"") + json_escape(ex.what()) + "\"}",
-
-                    "application/json");
-
-            }
-
+            handle_chat_completions(req, res, *brain);
         });
 
 
@@ -854,13 +878,15 @@ int main(int argc, char* argv[]) {
 
 
 
-        std::cout << "[proxy] cascade-router listening on http://localhost:" << kListenPort << '\n';
-
+        std::cout << "[proxy] cascade-router listening on http://0.0.0.0:" << kListenPort << '\n';
         std::cout << "[proxy] POST /v1/chat/completions\n";
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+        std::cout << "[proxy] Mode: upstream forwarding (OpenSSL)\n";
+#else
+        std::cout << "[proxy] Mode: mock forwarding (no OpenSSL)\n";
+#endif
 
-
-
-        if (!server.listen("127.0.0.1", kListenPort)) {
+        if (!server.listen("0.0.0.0", kListenPort)) {
 
             std::cerr << "[proxy] Failed to bind to localhost:" << kListenPort << '\n';
 

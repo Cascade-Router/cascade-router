@@ -109,6 +109,15 @@ target_include_directories(proxy_server PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src
 target_link_libraries(proxy_server PRIVATE httplib::httplib simdjson::simdjson nlohmann_json::nlohmann_json)
 cascade_link_onnx(proxy_server)
 
+find_package(OpenSSL QUIET)
+if(OpenSSL_FOUND)
+    target_link_libraries(proxy_server PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    target_compile_definitions(proxy_server PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+    message(STATUS "proxy_server: OpenSSL enabled — upstream HTTPS forwarding active")
+else()
+    message(STATUS "proxy_server: OpenSSL not found — mock forwarding mode")
+endif()
+
 if(WIN32)
     target_compile_definitions(proxy_server PRIVATE _WIN32_WINNT=0x0A00)
 endif()
