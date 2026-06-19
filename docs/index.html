@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cascade Router | Intelligent AI Proxy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            900: '#0a0a0a',
+                            800: '#111111',
+                            700: '#222222',
+                        },
+                        brand: {
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #050505; color: #ededed; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glow-border {
+            position: relative;
+        }
+        .glow-border::before {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(to bottom right, rgba(56, 189, 248, 0.3), rgba(255,255,255,0.05));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        .glass-panel {
+            background: rgba(17, 17, 17, 0.6);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 glass-panel border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="waves" class="text-brand-400 w-6 h-6"></i>
+                <span class="font-bold tracking-tight text-lg">Cascade Router</span>
+            </div>
+            <div class="flex items-center gap-6 text-sm font-medium">
+                <a href="#architecture" class="text-gray-400 hover:text-white transition-colors hidden sm:block">Architecture</a>
+                <a href="#benchmarks" class="text-gray-400 hover:text-white transition-colors hidden sm:block">Benchmarks</a>
+                <a href="https://github.com" target="_blank" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                    <i data-lucide="github" class="w-4 h-4"></i> GitHub
+                </a>
+                <a href="#enterprise" class="bg-white text-black px-4 py-2 rounded-md hover:bg-gray-200 transition-colors">Get Enterprise Key</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="flex-grow pt-32 pb-20 px-6">
+        <div class="max-w-5xl mx-auto text-center space-y-8">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-500/30 bg-brand-500/10 text-brand-400 text-sm font-medium mb-4">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-500"></span>
+                </span>
+                v0.1.0 Open-Core Beta is Live
+            </div>
+            
+            <h1 class="text-5xl md:text-7xl font-bold tracking-tighter leading-tight">
+                Stop overpaying for <br />
+                <span class="gradient-text">predictable AI infrastructure.</span>
+            </h1>
+            
+            <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
+                Cascade is a hyper-optimized C++ routing proxy. It uses a distilled local embedding model to predict prompt complexity in under 5 milliseconds, routing traffic to the cheapest capable LLM.
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                <a href="#enterprise" class="w-full sm:w-auto bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-md font-medium transition-colors flex items-center justify-center gap-2">
+                    Start Saving Today <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </a>
+                <button onclick="document.getElementById('codeSnippet').select(); document.execCommand('copy'); alert('Copied to clipboard!');" class="w-full sm:w-auto glass-panel border border-white/10 hover:border-white/20 text-white px-8 py-3 rounded-md font-mono text-sm transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-gray-400"></i> docker pull cascaderouter/proxy
+                    <input type="text" id="codeSnippet" value="docker pull cascaderouter/proxy" class="hidden">
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard / Code Preview -->
+        <div class="max-w-5xl mx-auto mt-20 relative glow-border rounded-xl bg-gray-900/50 p-1">
+            <div class="bg-[#0d0d0d] rounded-lg border border-white/5 overflow-hidden">
+                <div class="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-[#111]">
+                    <div class="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                    <span class="ml-4 text-xs text-gray-500 font-mono">proxy_server.cpp - C++</span>
+                </div>
+                <div class="p-6 overflow-x-auto">
+<pre class="font-mono text-sm leading-relaxed text-gray-300">
+<span class="text-brand-400">#include</span> <span class="text-green-400">&lt;nlohmann/json.hpp&gt;</span>
+<span class="text-brand-400">#include</span> <span class="text-green-400">"onnx_router.hpp"</span>
+
+<span class="text-brand-400">void</span> <span class="text-yellow-200">handle_request</span>(<span class="text-brand-400">const</span> Request& req, Response& res) {
+    <span class="text-gray-500">// 1. Parse JSON with zero-copy SIMD</span>
+    <span class="text-brand-400">auto</span> payload = simdjson::parse(req.body);
+    
+    <span class="text-gray-500">// 2. WordPiece Tokenization (Truncated to 16 tokens)</span>
+    <span class="text-brand-400">auto</span> tokens = tokenizer.encode(payload.prompt, <span class="text-orange-300">16</span>);
+    
+    <span class="text-gray-500">// 3. Extract ONNX Embedding (< 3ms)</span>
+    <span class="text-brand-400">auto</span> embedding = onnx_session.run(tokens);
+    
+    <span class="text-gray-500">// 4. Predict P(Success) via Logistic Regression</span>
+    <span class="text-brand-400">float</span> p_success = router_brain.predict(embedding, payload.complexity);
+    
+    <span class="text-gray-500">// 5. Route request dynamically</span>
+    std::string target_model = (p_success >= <span class="text-orange-300">0.5f</span>) ? <span class="text-green-400">"gpt-4o-mini"</span> : <span class="text-green-400">"gpt-4o"</span>;
+    forward_to_upstream(target_model, req.body);
+}
+</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Section -->
+        <div id="benchmarks" class="max-w-6xl mx-auto mt-32 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="glass-panel p-8 rounded-xl border border-white/10 glow-border">
+                <i data-lucide="zap" class="w-8 h-8 text-yellow-400 mb-4"></i>
+                <div class="text-4xl font-bold text-white mb-2">4.59 <span class="text-lg text-gray-400">ms</span></div>
+                <h3 class="text-lg font-medium text-white mb-2">Routing Overhead</h3>
+                <p class="text-sm text-gray-400">End-to-end latency for tokenization, ONNX embedding extraction, and ML prediction in C++.</p>
+            </div>
+            <div class="glass-panel p-8 rounded-xl border border-white/10 glow-border">
+                <i data-lucide="trending-down" class="w-8 h-8 text-green-400 mb-4"></i>
+                <div class="text-4xl font-bold text-white mb-2">68 <span class="text-lg text-gray-400">%</span></div>
+                <h3 class="text-lg font-medium text-white mb-2">Cost Reduction</h3>
+                <p class="text-sm text-gray-400">Average token spend reduction across standard enterprise workloads without degrading output quality.</p>
+            </div>
+            <div class="glass-panel p-8 rounded-xl border border-white/10 glow-border">
+                <i data-lucide="shield-check" class="w-8 h-8 text-brand-400 mb-4"></i>
+                <div class="text-4xl font-bold text-white mb-2">100 <span class="text-lg text-gray-400">%</span></div>
+                <h3 class="text-lg font-medium text-white mb-2">State Preserving</h3>
+                <p class="text-sm text-gray-400">Automated fallback logic ensures failed small-model responses are escalated within a single atomic connection.</p>
+            </div>
+        </div>
+
+        <!-- Enterprise CTA -->
+        <div id="enterprise" class="max-w-4xl mx-auto mt-32 text-center pb-12">
+            <h2 class="text-3xl font-bold mb-6">Built for the Enterprise Edge</h2>
+            <p class="text-gray-400 mb-8 max-w-xl mx-auto">
+                Self-host the open-source proxy today. Upgrade to an Enterprise License to unlock custom routing weights trained on your proprietary data, SOC2 audit logging, and SSO integration.
+            </p>
+            <a href="mailto:founders@cascade-router.com" class="bg-white text-black hover:bg-gray-200 px-8 py-3 rounded-md font-medium transition-colors inline-flex items-center gap-2">
+                <i data-lucide="mail" class="w-4 h-4"></i> Contact founders@cascade-router.com
+            </a>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-[#050505] py-8">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2 text-gray-500 font-medium">
+                <i data-lucide="waves" class="w-5 h-5"></i>
+                Cascade Router &copy; 2026
+            </div>
+            <div class="flex gap-6 text-sm text-gray-500">
+                <a href="#" class="hover:text-white transition-colors">Documentation</a>
+                <a href="#" class="hover:text-white transition-colors">GitHub</a>
+                <a href="#" class="hover:text-white transition-colors">Twitter</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
