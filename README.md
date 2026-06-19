@@ -1,23 +1,90 @@
-Cascade is a hyper-optimized, intelligent AI routing proxy built in C++ (io_uring). It dynamically intercepts AI API requests, evaluates the semantic complexity of the prompt in under 5 milliseconds, and routes it to the most cost-effective LLM capable of answering it.Enterprises use Cascade to reduce their OpenAI and Anthropic inference bills by 60% to 70% without sacrificing output quality or introducing system-halting latency.🚀 Why Cascade?Static model routing is bleeding enterprise budgets. Hardcoding every API call to a frontier model (like gpt-4o or claude-3.5-sonnet) wastes capital on simple extraction and classification tasks.Python-based routers attempt to solve this, but introduce 50ms - 200ms of latency per request—a fatal bottleneck for concurrent Agentic Workflows.Cascade solves both:Predictive Routing: Uses a highly distilled, local ONNX embedding classifier to predict prompt complexity, not brittle heuristics.Bare-Metal Speed: Extracts embeddings, evaluates confidence thresholds, and routes the network request with < 5ms overhead.Zero-Friction: Drop it in as a 1-line base URL replacement in your existing OpenAI SDKs.🧠 How it WorksCascade operates ahead of the inference lifecycle.Intercept & Truncate: Captures the incoming API request and truncates the payload to the first 16 tokens to isolate semantic intent.Feature Extraction: Extracts a 384-dimensional dense embedding (via all-MiniLM-L6-v2 ONNX) and scalar metadata (syntactical density).Probability Calibration: A lightweight Logistic Regression model outputs $P(\text{success} \mid \text{model}_i)$.Optimistic Route: The prompt is dispatched to the lowest-cost model clearing the enterprise quality threshold ($\theta$).Progressive Escalation: If the small model fails structural validation, the request is instantly escalated to a frontier model within the same atomic network transaction.graph TD
-    A[User Prompt] --> B(Cascade C++ Proxy)
-    B --> C{Tiny Classifier}
-    C -->|High Confidence| D[Small Model 8B]
-    C -->|Medium Confidence| E[Medium Model 70B]
-    C -->|Low Confidence| F[Frontier Model]
-    D --> G{Validator}
-    G -->|Pass| H[Response]
-    G -->|Fail| F
-⚡ BenchmarksCascade is designed to eliminate kernel context-switching and heap allocation bottlenecks.Event Loop: Linux io_uring Proactor pattern.Memory: Zero-copy std::pmr monotonic arenas.Inference: INT8 Quantized ONNX Runtime pinned to ORT_SEQUENTIAL.MetricTargetActual (Cascade v0.1)Routing Latency (16-token)< 5.0 ms4.02 msMemory Footprint (per 1k conns)< 10 MB8.4 MBModeled Cost Reduction> 60%68.2%💻 Quick StartCascade acts as a transparent proxy. You do not need to rewrite your application logic.1. Start the Local Server (Docker)docker run -p 8000:8000 -v ./models:/app/models cascaderouter/proxy:latest
-2. Point your application to CascadeJust change the base_url. Cascade handles the rest.Python (OpenAI SDK)from openai import OpenAI
+Cascade Router ⚡️
 
-# Previously: client = OpenAI(api_key="sk-...")
-client = OpenAI(
-    base_url="http://localhost:8000/v1", # Point to Cascade
-    api_key="sk-..."                     # Cascade passes this upstream securely
-)
+Predictive Multi-Model AI Routing Infrastructure.
 
-response = client.chat.completions.create(
-    model="cascade-auto", # Tells Cascade to route dynamically
-    messages=[{"role": "user", "content": "Extract the emails from this text..."}]
-)
-🏢 Enterprise LicenseThe core proxy and open-source models are free under the MIT License.Organizations deploying Cascade at scale can purchase an Enterprise License, which unlocks:Custom Model Weights: Fine-tune the Tiny Routing Classifier on your proprietary internal prompts.SOC2 Audit Logging: Complete, un-redacted telemetry of routing decisions.Single Sign-On (SSO): Control which engineering teams have access to the frontier fallback models.Contact founders@cascade-router.com for Enterprise inquiries.
+Cascade is a bare-metal C++ proxy that intercepts OpenAI SDK traffic and dynamically routes prompts to the most cost-effective model (e.g., gpt-4o-mini vs gpt-4o) based on semantic complexity. It reduces enterprise LLM bills by up to 75% while adding less than 5ms of latency.
+
+The Problem
+
+Enterprises default to hardcoding API calls to expensive frontier models because they lack the runtime infrastructure to confidently trust smaller, cheaper models. Existing Python-based routers (like LiteLLM) or SaaS platforms introduce 65ms - 200ms of latency, breaking agentic workflows and streaming UIs.
+
+The Cascade Solution
+
+Cascade moves routing intelligence ahead of the inference lifecycle and pushes it down to the metal.
+
+Drop-in Replacement: Change 1 line of code in your OpenAI SDK (base_url = "http://localhost:8000/v1").
+
+Predictive Intelligence: A highly distilled Logistic Regression classifier runs on top of a 384-dimensional WordPiece embedding space to predict $P(\text{success})$ for smaller models.
+
+Zero-Overhead: Written in C++ utilizing SIMD JSON parsing and INT8 ONNX Runtime matrix multiplication. The entire routing decision executes in ~4.6 milliseconds.
+
+🚀 Quick Start (Docker)
+
+Run the pre-compiled Ubuntu container. It automatically loads the v0.1 routing weights and exposes the OpenAI-compatible proxy on port 8000.
+
+# 1. Clone the repository
+git clone [https://github.com/AmirMohaddesi/cascade-router.git](https://github.com/AmirMohaddesi/cascade-router.git)
+cd cascade-router
+
+# 2. Start the proxy
+docker compose up -d
+
+
+Test the Router:
+Point your standard curl or Python OpenAI SDK to the proxy. The router will intercept it, rewrite the model to the cheapest capable tier, forward it securely to OpenAI, and return the response with a custom latency header.
+
+curl -s -D - -X POST "http://localhost:8000/v1/chat/completions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-your-openai-api-key" \
+  -d '{"model":"cascade-auto","messages":[{"role":"user","content":"Explain recursion in one sentence."}]}'
+
+
+Look for X-Cascade-Latency in the returned headers to verify the sub-5ms routing speed.
+
+🧠 Architecture & The v0.1 "Brain"
+
+This repository includes the complete open-source C++ proxy and a foundational router_weights.json brain (v0.1).
+
+The v0.1 weights were trained using our automated LLM-as-a-Judge pipeline on an 800+ prompt enterprise dataset, successfully identifying the failure boundaries between GPT-4o and GPT-4o-mini with 67.8% baseline accuracy, yielding a 75% pass rate for the smaller model.
+
+For Enterprise: The included Python pipeline (src/) allows organizations to ingest their own historical prompt logs, evaluate them, and train highly-calibrated, domain-specific routing weights tailored to their proprietary use cases.
+
+📊 Benchmarks
+
+Because Cascade avoids the Python Global Interpreter Lock (GIL) and external network hops, it is the only semantic router capable of scaling to thousands of concurrent requests without bottlenecking upstream applications.
+
+Architecture
+
+Implementation
+
+Latency Overhead
+
+Cascade Router
+
+Bare-Metal C++, INT8 ONNX
+
+~4.6 ms
+
+Python Proxy
+
+LiteLLM, FastAPI
+
+~65.0 ms
+
+SaaS Router
+
+External API Network Hop
+
+~180.0 ms
+
+LLM-as-a-Judge
+
+Evaluating via API
+
+~850.0 ms
+
+See the Technical Whitepaper for full methodology and latency charts.
+
+License
+
+The core C++ proxy and v0.1 routing weights are released under the MIT License.

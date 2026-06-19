@@ -6,12 +6,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import random
 from typing import Any
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
 
 from src.config import (
+    GEMINI_BASE_URL,
     INITIAL_BACKOFF_SECONDS,
     LLM_MAX_TOKENS,
     LLM_TEMPERATURE,
@@ -21,6 +23,19 @@ from src.config import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def create_async_llm_client() -> AsyncOpenAI:
+    """Create an AsyncOpenAI client pointed at Gemini's OpenAI-compatible API."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise EnvironmentError(
+            "GEMINI_API_KEY is not set. Export it or add it to a .env file."
+        )
+    return AsyncOpenAI(
+        api_key=api_key,
+        base_url=GEMINI_BASE_URL,
+    )
 
 
 def compute_backoff(attempt: int, retry_after: float | None = None) -> float:

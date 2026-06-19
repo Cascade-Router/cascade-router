@@ -28,11 +28,10 @@ from src.config import (
     EVALUATION_RESULTS_PATH,
     JUDGE_MODEL,
     MAX_CONCURRENT_REQUESTS,
-    OPENAI_API_KEY,
     PROCESS_LIMIT_ROWS,
     REFERENCE_ANSWERS_PATH,
 )
-from src.llm_async import chat_completion
+from src.llm_async import chat_completion, create_async_llm_client
 from src.parquet_io import (
     append_results_to_parquet,
     apply_row_limit,
@@ -124,11 +123,6 @@ async def judge_async(
     output_path: Path | None = None,
 ) -> pd.DataFrame:
     """Evaluate all pending pairs asynchronously with incremental saves."""
-    if not OPENAI_API_KEY:
-        raise EnvironmentError(
-            "OPENAI_API_KEY is not set. Export it or add it to a .env file."
-        )
-
     target = output_path or EVALUATION_RESULTS_PATH
     completed_ids = load_completed_prompt_ids(target)
     pending = pairs_df[~pairs_df["prompt_id"].astype(str).isin(completed_ids)].copy()
@@ -146,7 +140,7 @@ async def judge_async(
         max_concurrent,
     )
 
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = create_async_llm_client()
     semaphore = asyncio.Semaphore(max_concurrent)
     batch_buffer: list[dict[str, Any]] = []
     processed = 0

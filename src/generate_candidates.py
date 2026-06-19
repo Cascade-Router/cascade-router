@@ -27,11 +27,10 @@ from src.config import (
     CANDIDATE_MODEL,
     MAX_CONCURRENT_REQUESTS,
     NORMALIZED_PROMPTS_PATH,
-    OPENAI_API_KEY,
     PROCESS_LIMIT_ROWS,
 )
 from src.generate_ref import load_normalized_prompts
-from src.llm_async import chat_completion
+from src.llm_async import chat_completion, create_async_llm_client
 from src.parquet_io import (
     append_results_to_parquet,
     apply_row_limit,
@@ -83,11 +82,6 @@ async def generate_candidates_async(
     output_path: Path | None = None,
 ) -> pd.DataFrame:
     """Process pending prompts asynchronously with incremental parquet saves."""
-    if not OPENAI_API_KEY:
-        raise EnvironmentError(
-            "OPENAI_API_KEY is not set. Export it or add it to a .env file."
-        )
-
     target = output_path or CANDIDATE_ANSWERS_PATH
     completed_ids = load_completed_prompt_ids(target)
     pending = prompts_df[~prompts_df["prompt_id"].astype(str).isin(completed_ids)].copy()
@@ -105,7 +99,7 @@ async def generate_candidates_async(
         max_concurrent,
     )
 
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = create_async_llm_client()
     semaphore = asyncio.Semaphore(max_concurrent)
     batch_buffer: list[dict[str, Any]] = []
     processed = 0

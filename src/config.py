@@ -38,13 +38,14 @@ RANDOM_SEED: int = int(os.getenv("RANDOM_SEED", "42"))
 ROWS_PER_DATASET: int = TARGET_TOTAL_ROWS // 3
 
 # ---------------------------------------------------------------------------
-# Reference generation (LLM)
+# LLM generation (Gemini via OpenAI-compatible endpoint)
 # ---------------------------------------------------------------------------
-OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
-REFERENCE_MODEL: str = os.getenv("REFERENCE_MODEL", "gpt-4o")
-CANDIDATE_MODEL: str = os.getenv("CANDIDATE_MODEL", "gpt-4o-mini")
-JUDGE_MODEL: str = os.getenv("JUDGE_MODEL", "gpt-4o-mini")
-MAX_CONCURRENT_REQUESTS: int = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))
+GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
+GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+REFERENCE_MODEL: str = os.getenv("REFERENCE_MODEL", "gemini-2.5-flash")
+CANDIDATE_MODEL: str = os.getenv("CANDIDATE_MODEL", "gemini-2.5-flash")
+JUDGE_MODEL: str = os.getenv("JUDGE_MODEL", "gemini-2.5-flash")
+MAX_CONCURRENT_REQUESTS: int = int(os.getenv("MAX_CONCURRENT_REQUESTS", "2"))
 BATCH_SAVE_SIZE: int = int(os.getenv("BATCH_SAVE_SIZE", "500"))
 
 # Optional cap for micro-tests / debugging (None = process all rows).
