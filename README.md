@@ -9,18 +9,26 @@
 
 Cascade is a high-performance, bare-metal C++ proxy that intercepts OpenAI SDK traffic and dynamically routes prompts to the most cost-effective model (e.g., `gpt-4o-mini` vs `gpt-4o`). Powered by a highly distilled local embedding classifier, Cascade reduces enterprise LLM inference bills by up to **75%** while introducing **less than 5ms** of latency.
 
+## ⚡️ The Cascade Architecture
+
+```mermaid
+graph TD
+    A[User App / Python SDK] -->|HTTP POST| B(Cascade C++ Proxy)
+    B --> C{ONNX Distilled Classifier}
+    C -->|> 90% Confidence| D[gpt-4o-mini]
+    C -->|< 90% Confidence| E[gpt-4o]
+    D --> F[Runtime Output Validator]
+    F -->|Validation Fail| E
+    F -->|Validation Pass| G[Return Response]
+    E --> G
+```
+
+1. **Transparent Integration:** A single-line `base_url` change in your OpenAI SDK (`http://localhost:8000/v1`).
+
 ---
 
 ## 🛑 The Industry Bottleneck
 Enterprises default to hardcoding API calls to expensive frontier models out of fear of hallucinations or degraded output. Existing dynamic routing solutions—whether Python-based proxies (like LiteLLM) or third-party SaaS platforms—introduce 65ms to 200ms of latency. This unacceptable overhead breaks real-time agentic workflows, streaming UIs, and high-throughput data pipelines.
-
-## ⚡️ The Cascade Architecture
-Cascade moves routing intelligence ahead of the inference lifecycle, executing entirely on the metal within your VPC.
-1. **Transparent Integration:** A single-line `base_url` change in your OpenAI SDK (`http://localhost:8000/v1`).
-2. **Predictive Intelligence:** A highly distilled Logistic Regression classifier processes a 384-dimensional WordPiece embedding space to predict $P(\text{success})$ for smaller models based purely on semantic intent.
-3. **Zero-Overhead Execution:** Engineered in C++ utilizing zero-copy SIMD JSON parsing and INT8 ONNX Runtime matrix multiplication. The end-to-end routing decision executes in **~4.6 milliseconds**.
-
----
 
 ## 🚀 Quick Start
 Deploy the pre-compiled, production-ready Ubuntu container. It automatically loads the v0.1 routing weights and exposes an OpenAI-compatible proxy.
