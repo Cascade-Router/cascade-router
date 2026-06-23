@@ -5,9 +5,9 @@
 [![Latency](https://img.shields.io/badge/latency-<5ms-orange.svg)]()
 [![Version](https://img.shields.io/badge/version-0.1.0_Beta-purple.svg)]()
 
-![Cascade Observability Dashboard](cascade-observability-dashboard.png)
-
 **Predictive Multi-Model AI Routing Infrastructure.**
+
+![Cascade Observability UI showing 50k requests and $879 saved](docs/assets/cascade-dashboard.png)
 
 Cascade is a high-performance, bare-metal C++ proxy that intercepts OpenAI SDK traffic and dynamically routes prompts to the most cost-effective model (e.g., `gpt-4o-mini` vs `gpt-4o`). Powered by a highly distilled local embedding classifier, Cascade reduces enterprise LLM inference bills by up to **75%** while introducing **less than 5ms** of latency.
 
@@ -37,7 +37,7 @@ Deploy the pre-compiled, production-ready Ubuntu container. It automatically loa
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/AmirMohaddesi/cascade-router.git
+git clone https://github.com/Cascade-Router/cascade-router.git
 cd cascade-router
 
 # 2. Start the proxy in detached mode
