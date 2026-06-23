@@ -242,7 +242,10 @@ bool header_equals_ignore_case(std::string_view lhs, std::string_view rhs) {
 
 bool should_strip_upstream_header(std::string_view name) {
     return header_equals_ignore_case(name, "Content-Length") ||
-           header_equals_ignore_case(name, "Host");
+           header_equals_ignore_case(name, "Host") ||
+           header_equals_ignore_case(name, "Content-Type") ||
+           header_equals_ignore_case(name, "Accept-Encoding") ||
+           header_equals_ignore_case(name, "Transfer-Encoding");
 }
 
 httplib::Headers build_upstream_headers(const httplib::Request& req) {
@@ -253,8 +256,6 @@ httplib::Headers build_upstream_headers(const httplib::Request& req) {
         }
         upstream_headers.emplace(header.first, header.second);
     }
-    upstream_headers.erase("Content-Type");
-    upstream_headers.emplace("Content-Type", "application/json");
     return upstream_headers;
 }
 
@@ -941,11 +942,14 @@ void handle_chat_completions(
     cli.set_read_timeout(120, 0);
     cli.enable_server_certificate_verification(true);
 
-    httplib::Headers upstream_headers = build_upstream_headers(req);
+    httplib::Headers filtered_headers = build_upstream_headers(req);
+
+    std::cout << "[DEBUG] Sending rewritten payload to OpenAI: " << upstream_payload
+              << std::endl;
 
     auto upstream = cli.Post(
-        "/v1/chat/completions",
-        upstream_headers,
+        req.path.c_str(),
+        filtered_headers,
         upstream_payload,
         "application/json");
 
