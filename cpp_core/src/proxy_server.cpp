@@ -48,6 +48,10 @@
 
 #include <cstdint>
 
+#include <ctime>
+
+#include <filesystem>
+
 #include <fstream>
 
 #include <iomanip>
@@ -63,6 +67,8 @@
 #include <string>
 
 #include <string_view>
+
+#include <thread>
 
 #include <vector>
 
@@ -96,6 +102,14 @@ constexpr const char* kAttentionMaskName = "attention_mask";
 constexpr const char* kTokenTypeIdsName = "token_type_ids";
 constexpr const char* kSmallModel = "gpt-4o-mini";
 constexpr const char* kLargeModel = "gpt-4o";
+constexpr const char* kTrafficLogPath = "../logs/cascade_traffic.log";
+
+
+
+struct TokenUsage {
+    int input_tokens = 0;
+    int output_tokens = 0;
+};
 
 
 
@@ -201,6 +215,87 @@ std::string format_latency_header(double latency_ms) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(4) << latency_ms;
     return out.str();
+}
+
+std::string utc_timestamp_iso8601() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm_buf{};
+#ifdef _WIN32
+    gmtime_s(&tm_buf, &t);
+#else
+    gmtime_r(&t, &tm_buf);
+#endif
+    std::ostringstream oss;
+    oss << std::put_time(&tm_buf, "%Y-%m-%dT%H:%M:%SZ");
+    return oss.str();
+}
+
+void ensure_traffic_log_directory() {
+    const std::filesystem::path log_path(kTrafficLogPath);
+    if (log_path.has_parent_path()) {
+        std::filesystem::create_directories(log_path.parent_path());
+    }
+}
+
+TokenUsage extract_usage_from_response(const std::string& body) {
+    TokenUsage usage;
+    try {
+        const auto parsed = nlohmann::json::parse(body);
+        if (parsed.contains("usage") && parsed["usage"].is_object()) {
+            usage.input_tokens = parsed["usage"].value("prompt_tokens", 0);
+            usage.output_tokens = parsed["usage"].value("completion_tokens", 0);
+        }
+    } catch (const std::exception&) {
+        // Best-effort telemetry only.
+    }
+    return usage;
+}
+
+int estimate_input_tokens_from_request(const std::string& body) {
+    try {
+        const auto parsed = nlohmann::json::parse(body);
+        int total_chars = 0;
+        if (parsed.contains("messages") && parsed["messages"].is_array()) {
+            for (const auto& message : parsed["messages"]) {
+                if (message.contains("content") && message["content"].is_string()) {
+                    total_chars += static_cast<int>(
+                        message["content"].get<std::string>().size());
+                }
+            }
+        }
+        return std::max(1, total_chars / 4);
+    } catch (const std::exception&) {
+        return 0;
+    }
+}
+
+void append_traffic_log_async(
+    const std::string& model_routed,
+    int input_tokens,
+    int output_tokens,
+    double routing_latency_ms) {
+    const double rounded_latency =
+        std::round(routing_latency_ms * 10.0) / 10.0;
+    const std::string line = nlohmann::json{
+        {"timestamp", utc_timestamp_iso8601()},
+        {"model_routed", model_routed},
+        {"input_tokens", input_tokens},
+        {"output_tokens", output_tokens},
+        {"routing_latency_ms", rounded_latency},
+    }.dump();
+
+    std::thread([line]() {
+        try {
+            ensure_traffic_log_directory();
+            std::ofstream out(kTrafficLogPath, std::ios::app);
+            if (out) {
+                out << line << '\n';
+            }
+        } catch (const std::exception&) {
+            // Telemetry must never break the proxy hot path.
+        }
+    }).detach();
 }
 
 
@@ -782,6 +877,8 @@ void handle_chat_completions(
 
     res.set_header("X-Cascade-Latency", format_latency_header(result.latency_ms));
 
+    std::string response_body;
+
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
     const auto auth_it = req.headers.find("Authorization");
     if (auth_it == req.headers.end()) {
@@ -818,14 +915,27 @@ void handle_chat_completions(
 
     res.status = upstream->status;
     const std::string content_type = upstream->get_header_value("Content-Type");
+    response_body = upstream->body;
     res.set_content(
-        upstream->body,
+        response_body,
         content_type.empty() ? "application/json" : content_type);
 #else
     // Local Windows builds without OpenSSL: return mutated payload for testing.
     res.status = 200;
-    res.set_content(mutated_body, "application/json");
+    response_body = mutated_body;
+    res.set_content(response_body, "application/json");
 #endif
+
+    TokenUsage usage = extract_usage_from_response(response_body);
+    if (usage.input_tokens == 0) {
+        usage.input_tokens = estimate_input_tokens_from_request(req.body);
+    }
+
+    append_traffic_log_async(
+        target_model,
+        usage.input_tokens,
+        usage.output_tokens,
+        result.latency_ms);
 }
 
 }  // namespace
