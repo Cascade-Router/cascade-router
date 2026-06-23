@@ -20,14 +20,14 @@ def generate_mock_logs(filepath):
     
     now = datetime.now()
     with open(filepath, "w") as f:
-        for i in range(1000):
+        for i in range(50000):
             # 75% of traffic is simple enough for mini
             is_simple = random.random() < 0.75 
             target_model = "gpt-4o-mini" if is_simple else "gpt-4o"
             
             # Realistic token distributions
-            input_tokens = int(random.gauss(400, 100))
-            output_tokens = int(random.gauss(150, 50))
+            input_tokens = int(random.gauss(3500, 500))
+            output_tokens = int(random.gauss(450, 100))
             latency = round(random.uniform(3.8, 4.9), 2)
             
             log_entry = {

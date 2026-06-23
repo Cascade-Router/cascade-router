@@ -54,9 +54,11 @@ data/*.parquet
 data/*.json
 
 # ---------------------------------------------------------------------------
-# Telemetry logs (generated at runtime)
+# Telemetry logs (generated at runtime — never commit mock/production traffic)
 # ---------------------------------------------------------------------------
 logs/
+logs/*.log
+logs/**/*.log
 !logs/.gitkeep
 
 # ---------------------------------------------------------------------------

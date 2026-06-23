@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cascade | Observability</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 400: '#38bdf8', 500: '#0ea5e9' },
+                        surface: '#0a0a0a',
+                        surfaceBorder: '#1f1f1f'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap');
+        body { background-color: #030303; color: #ededed; }
+        .glass-panel {
+            background: rgba(10, 10, 10, 0.7);
+            border: 1px solid #1f1f1f;
+            backdrop-filter: blur(16px);
+        }
+        /* Custom scrollbar for table */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col p-6">
+
+    <!-- Header -->
+    <header class="max-w-7xl mx-auto w-full flex items-center justify-between mb-8">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
+                <i data-lucide="waves" class="text-brand-400 w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">Cascade Control Plane</h1>
+                <p class="text-xs text-gray-400">Local Telemetry & ROI Dashboard</p>
+            </div>
+        </div>
+        <div>
+            <input type="file" id="logUpload" accept=".log,.txt" class="hidden">
+            <button onclick="document.getElementById('logUpload').click()" class="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-md text-sm font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-white/10">
+                <i data-lucide="upload" class="w-4 h-4"></i> Load Traffic Log
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dashboard (Hidden until file loaded) -->
+    <main id="dashboard" class="max-w-7xl mx-auto w-full flex-grow space-y-6 hidden">
+        
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-panel p-5 rounded-xl">
+                <div class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4"></i> Total Requests
+                </div>
+                <div class="text-3xl font-bold font-mono" id="kpiTotal">0</div>
+            </div>
+            <div class="glass-panel p-5 rounded-xl border-t-2 border-t-green-500/50">
+                <div class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="trending-down" class="w-4 h-4"></i> Down-Routed (Mini)
+                </div>
+                <div class="flex items-end gap-2">
+                    <div class="text-3xl font-bold font-mono text-green-400" id="kpiMini">0</div>
+                    <div class="text-sm text-gray-500 mb-1 font-mono" id="kpiMiniPct">(0%)</div>
+                </div>
+            </div>
+            <div class="glass-panel p-5 rounded-xl">
+                <div class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4"></i> Avg Routing Latency
+                </div>
+                <div class="text-3xl font-bold font-mono text-yellow-400" id="kpiLatency">0 ms</div>
+            </div>
+            <div class="glass-panel p-5 rounded-xl bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
+                <div class="text-gray-400 text-xs font-medium mb-1 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="dollar-sign" class="w-4 h-4 text-green-400"></i> Total Savings
+                </div>
+                <div class="flex items-end gap-2">
+                    <div class="text-3xl font-bold font-mono text-white" id="kpiSavings">$0.00</div>
+                    <div class="text-sm text-green-400 mb-1 font-mono" id="kpiSavingsPct">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="glass-panel p-5 rounded-xl lg:col-span-2">
+                <h3 class="text-sm font-semibold mb-4 text-gray-300">Traffic Over Time</h3>
+                <div class="h-64 w-full relative">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-panel p-5 rounded-xl">
+                <h3 class="text-sm font-semibold mb-4 text-gray-300">Routing Distribution</h3>
+                <div class="h-64 w-full relative flex items-center justify-center">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="glass-panel rounded-xl overflow-hidden">
+            <div class="p-5 border-b border-surfaceBorder flex justify-between items-center">
+                <h3 class="text-sm font-semibold text-gray-300">Recent Routing Decisions</h3>
+            </div>
+            <div class="overflow-x-auto max-h-64">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead class="bg-[#0f0f0f] text-gray-400 sticky top-0">
+                        <tr>
+                            <th class="px-5 py-3 font-medium">Timestamp</th>
+                            <th class="px-5 py-3 font-medium">Model Targeted</th>
+                            <th class="px-5 py-3 font-medium text-right">In Tokens</th>
+                            <th class="px-5 py-3 font-medium text-right">Out Tokens</th>
+                            <th class="px-5 py-3 font-medium text-right">Latency</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-surfaceBorder font-mono text-xs">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="max-w-xl mx-auto mt-24 text-center">
+        <div class="w-16 h-16 bg-surface border border-surfaceBorder rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl">
+            <i data-lucide="bar-chart-2" class="w-8 h-8 text-gray-500"></i>
+        </div>
+        <h2 class="text-2xl font-semibold mb-2">No Telemetry Loaded</h2>
+        <p class="text-gray-400 mb-8 leading-relaxed">
+            Select your <code class="text-brand-400 bg-brand-400/10 px-1.5 py-0.5 rounded">cascade_traffic.log</code> file to instantly visualize routing metrics, sub-5ms latencies, and enterprise cost savings. All data is processed locally in your browser.
+        </p>
+        <button onclick="document.getElementById('logUpload').click()" class="bg-brand-500 hover:bg-brand-400 text-white px-6 py-3 rounded-md font-semibold transition-colors">
+            Select Log File
+        </button>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const PRICING = {
+            "gpt-4o": { input: 5.00, output: 15.00 },
+            "gpt-4o-mini": { input: 0.15, output: 0.60 }
+        };
+
+        let trafficChartInstance = null;
+        let distChartInstance = null;
+
+        document.getElementById('logUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n');
+                processLogs(lines);
+            };
+            reader.readAsText(file);
+        });
+
+        function processLogs(lines) {
+            let totalReqs = 0;
+            let miniReqs = 0;
+            let totalLatency = 0;
+            let actualCost = 0;
+            let frontierOnlyCost = 0;
+
+            const logs = [];
+            const timeBuckets = {}; // For time-series chart
+
+            lines.forEach(line => {
+                if (!line.trim()) return;
+                try {
+                    const data = JSON.parse(line);
+                    logs.push(data);
+                    
+                    const model = data.model_routed || "gpt-4o";
+                    const inTok = data.input_tokens || 0;
+                    const outTok = data.output_tokens || 0;
+                    const lat = data.routing_latency_ms || 0;
+
+                    totalReqs++;
+                    totalLatency += lat;
+                    if (model === "gpt-4o-mini") miniReqs++;
+
+                    const inCost = (inTok / 1000000) * PRICING[model].input;
+                    const outCost = (outTok / 1000000) * PRICING[model].output;
+                    actualCost += (inCost + outCost);
+
+                    const fInCost = (inTok / 1000000) * PRICING["gpt-4o"].input;
+                    const fOutCost = (outTok / 1000000) * PRICING["gpt-4o"].output;
+                    frontierOnlyCost += (fInCost + fOutCost);
+
+                    // Bucket by hour for chart (simplified)
+                    const date = new Date(data.timestamp);
+                    const bucket = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:00`;
+                    if (!timeBuckets[bucket]) timeBuckets[bucket] = { mini: 0, frontier: 0 };
+                    if (model === "gpt-4o-mini") timeBuckets[bucket].mini++;
+                    else timeBuckets[bucket].frontier++;
+
+                } catch (err) {
+                    console.error("Skipping invalid JSON line:", err);
+                }
+            });
+
+            if (totalReqs === 0) return alert("No valid logs found in file.");
+
+            // Update KPIs
+            const savings = frontierOnlyCost - actualCost;
+            const savingsPct = frontierOnlyCost > 0 ? (savings / frontierOnlyCost) * 100 : 0;
+            const avgLat = totalLatency / totalReqs;
+
+            document.getElementById('kpiTotal').innerText = totalReqs.toLocaleString();
+            document.getElementById('kpiMini').innerText = miniReqs.toLocaleString();
+            document.getElementById('kpiMiniPct').innerText = `(${(miniReqs/totalReqs * 100).toFixed(1)}%)`;
+            document.getElementById('kpiLatency').innerText = `${avgLat.toFixed(2)} ms`;
+            document.getElementById('kpiSavings').innerText = `$${savings.toFixed(2)}`;
+            document.getElementById('kpiSavingsPct').innerText = `${savingsPct.toFixed(1)}%`;
+
+            // Render Charts
+            renderCharts(timeBuckets, totalReqs, miniReqs);
+
+            // Populate Table (last 50)
+            renderTable(logs.slice(-50).reverse());
+
+            // Switch UI
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+
+        function renderCharts(timeBuckets, totalReqs, miniReqs) {
+            Chart.defaults.color = '#9ca3af';
+            Chart.defaults.font.family = 'Inter';
+
+            const labels = Object.keys(timeBuckets);
+            const miniData = labels.map(l => timeBuckets[l].mini);
+            const frontierData = labels.map(l => timeBuckets[l].frontier);
+
+            // Traffic Chart
+            if (trafficChartInstance) trafficChartInstance.destroy();
+            const ctx1 = document.getElementById('trafficChart').getContext('2d');
+            trafficChartInstance = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Routed to GPT-4o-Mini', data: miniData, backgroundColor: '#38bdf8', stack: 'Stack 0' },
+                        { label: 'Escalated to GPT-4o', data: frontierData, backgroundColor: '#4b5563', stack: 'Stack 0' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } },
+                    scales: {
+                        x: { grid: { display: false, drawBorder: false } },
+                        y: { grid: { color: '#1f1f1f' } }
+                    }
+                }
+            });
+
+            // Distribution Chart
+            if (distChartInstance) distChartInstance.destroy();
+            const ctx2 = document.getElementById('distributionChart').getContext('2d');
+            distChartInstance = new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['gpt-4o-mini', 'gpt-4o'],
+                    datasets: [{
+                        data: [miniReqs, totalReqs - miniReqs],
+                        backgroundColor: ['#38bdf8', '#4b5563'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    cutout: '75%',
+                    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } } }
+                }
+            });
+        }
+
+        function renderTable(logs) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            logs.forEach(log => {
+                const date = new Date(log.timestamp);
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const isMini = log.model_routed === 'gpt-4o-mini';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-5 py-3 text-gray-500">${timeStr}</td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-1 rounded text-[11px] ${isMini ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-gray-800 text-gray-300 border border-gray-700'}">
+                            ${log.model_routed}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 text-right text-gray-400">${log.input_tokens}</td>
+                    <td class="px-5 py-3 text-right text-gray-400">${log.output_tokens}</td>
+                    <td class="px-5 py-3 text-right ${log.routing_latency_ms > 5.0 ? 'text-yellow-400' : 'text-green-400'}">${log.routing_latency_ms.toFixed(2)} ms</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
