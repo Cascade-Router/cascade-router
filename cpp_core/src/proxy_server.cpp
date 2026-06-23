@@ -205,10 +205,24 @@ std::string select_target_model(float p_success) {
     return p_success >= 0.5f ? kSmallModel : kLargeModel;
 }
 
-std::string mutate_request_payload(const std::string& raw_body, const std::string& target_model) {
-    nlohmann::json payload = nlohmann::json::parse(raw_body);
-    payload["model"] = target_model;
-    return payload.dump();
+std::string rewrite_model_in_payload(
+    const std::string& raw_body,
+    const std::string& target_model,
+    std::string& error) {
+    try {
+        nlohmann::json json_body = nlohmann::json::parse(raw_body);
+        if (!json_body.is_object()) {
+            error = "Request body must be a JSON object";
+            return {};
+        }
+
+        // Force the routed model before upstream forwarding (OpenAI requires this field).
+        json_body["model"] = target_model;
+        return json_body.dump();
+    } catch (const nlohmann::json::exception& ex) {
+        error = ex.what();
+        return {};
+    }
 }
 
 std::string format_latency_header(double latency_ms) {
@@ -864,17 +878,6 @@ void handle_chat_completions(
     const auto result = brain.run_inference(prompt);
     const std::string target_model = select_target_model(result.p_success);
 
-    std::string mutated_body;
-    try {
-        mutated_body = mutate_request_payload(req.body, target_model);
-    } catch (const nlohmann::json::exception& ex) {
-        res.status = 400;
-        res.set_content(
-            std::string("{\"error\":\"") + json_escape(ex.what()) + "\"}",
-            "application/json");
-        return;
-    }
-
     res.set_header("X-Cascade-Latency", format_latency_header(result.latency_ms));
 
     std::string response_body;
@@ -885,6 +888,17 @@ void handle_chat_completions(
         res.status = 401;
         res.set_content(
             "{\"error\":\"Missing Authorization header (OpenAI API key).\"}",
+            "application/json");
+        return;
+    }
+
+    std::string rewrite_error;
+    const std::string upstream_payload =
+        rewrite_model_in_payload(req.body, target_model, rewrite_error);
+    if (upstream_payload.empty()) {
+        res.status = 400;
+        res.set_content(
+            std::string("{\"error\":\"") + json_escape(rewrite_error) + "\"}",
             "application/json");
         return;
     }
@@ -902,7 +916,7 @@ void handle_chat_completions(
     auto upstream = cli.Post(
         "/v1/chat/completions",
         upstream_headers,
-        mutated_body,
+        upstream_payload,
         "application/json");
 
     if (!upstream) {
@@ -921,8 +935,19 @@ void handle_chat_completions(
         content_type.empty() ? "application/json" : content_type);
 #else
     // Local Windows builds without OpenSSL: return mutated payload for testing.
+    std::string rewrite_error;
+    const std::string upstream_payload =
+        rewrite_model_in_payload(req.body, target_model, rewrite_error);
+    if (upstream_payload.empty()) {
+        res.status = 400;
+        res.set_content(
+            std::string("{\"error\":\"") + json_escape(rewrite_error) + "\"}",
+            "application/json");
+        return;
+    }
+
     res.status = 200;
-    response_body = mutated_body;
+    response_body = upstream_payload;
     res.set_content(response_body, "application/json");
 #endif
 
