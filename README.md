@@ -5,7 +5,7 @@
 [![Latency](https://img.shields.io/badge/latency-<5ms-orange.svg)]()
 [![Version](https://img.shields.io/badge/version-0.1.0_Beta-purple.svg)]()
 
-![Cascade Observability Dashboard](cascade-dashboard.png)
+![Cascade Observability Dashboard](cascade-observability-dashboard.png)
 
 **Predictive Multi-Model AI Routing Infrastructure.**
 
