@@ -48,6 +48,8 @@
 
 #include <cstdint>
 
+#include <cctype>
+
 #include <ctime>
 
 #include <filesystem>
@@ -223,6 +225,37 @@ std::string rewrite_model_in_payload(
         error = ex.what();
         return {};
     }
+}
+
+bool header_equals_ignore_case(std::string_view lhs, std::string_view rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < lhs.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(lhs[i])) !=
+            std::tolower(static_cast<unsigned char>(rhs[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool should_strip_upstream_header(std::string_view name) {
+    return header_equals_ignore_case(name, "Content-Length") ||
+           header_equals_ignore_case(name, "Host");
+}
+
+httplib::Headers build_upstream_headers(const httplib::Request& req) {
+    httplib::Headers upstream_headers;
+    for (const auto& header : req.headers) {
+        if (should_strip_upstream_header(header.first)) {
+            continue;
+        }
+        upstream_headers.emplace(header.first, header.second);
+    }
+    upstream_headers.erase("Content-Type");
+    upstream_headers.emplace("Content-Type", "application/json");
+    return upstream_headers;
 }
 
 std::string format_latency_header(double latency_ms) {
@@ -908,10 +941,7 @@ void handle_chat_completions(
     cli.set_read_timeout(120, 0);
     cli.enable_server_certificate_verification(true);
 
-    httplib::Headers upstream_headers = {
-        {"Content-Type", "application/json"},
-        {"Authorization", auth_it->second},
-    };
+    httplib::Headers upstream_headers = build_upstream_headers(req);
 
     auto upstream = cli.Post(
         "/v1/chat/completions",
