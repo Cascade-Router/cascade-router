@@ -94,7 +94,7 @@
             <i data-lucide="trending-down" class="w-8 h-8 text-green-400 mb-4"></i>
             <div class="text-4xl font-bold text-white mb-2">75 <span class="text-lg text-gray-500">%</span></div>
             <h3 class="text-lg font-semibold text-white mb-2">Reduced API Spend</h3>
-            <p class="text-sm text-gray-400">Automatically routes basic extraction and classification tasks to smaller, cheaper models.</p>
+            <p class="text-sm text-gray-400">Automatically routes basic extraction and classification tasks to fast models instead of frontier tiers—cutting OpenAI and Anthropic bills without added latency.</p>
         </div>
         <div class="glass-panel p-8 rounded-xl border border-surfaceBorder">
             <i data-lucide="shield-check" class="w-8 h-8 text-purple-400 mb-4"></i>
@@ -109,14 +109,14 @@
             <div class="text-center mb-8">
                 <h2 class="text-3xl font-bold text-white mb-3">ROI Calculator</h2>
                 <p class="text-gray-400 max-w-xl mx-auto">
-                    Estimate how much Cascade can save by routing predictable prompts to cheaper models without adding latency.
+                    Estimate how much Cascade can save by routing predictable prompts to cheaper models without adding latency. Cascade automatically routes 75% of your simple workloads to fast models (like gpt-4o-mini or Claude 3 Haiku) instead of frontier models (like gpt-4o or Claude 3.5 Sonnet).
                 </p>
             </div>
 
             <div class="space-y-8">
                 <div>
                     <div class="flex justify-between items-center mb-3">
-                        <label for="monthlySpend" class="text-sm font-medium text-gray-300">Monthly OpenAI API Spend</label>
+                        <label for="monthlySpend" class="text-sm font-medium text-gray-300">Monthly LLM API Spend</label>
                         <span class="text-lg font-bold text-brand-400 font-mono">$<span id="spendDisplay">50,000</span></span>
                     </div>
                     <input
@@ -136,7 +136,7 @@
 
                 <div>
                     <div class="flex justify-between items-center mb-3">
-                        <label for="routableShare" class="text-sm font-medium text-gray-300">Share of prompts routable to gpt-4o-mini</label>
+                        <label for="routableShare" class="text-sm font-medium text-gray-300">Share of prompts routable to fast models</label>
                         <span class="text-lg font-bold text-green-400 font-mono"><span id="shareDisplay">75</span>%</span>
                     </div>
                     <input
@@ -166,7 +166,7 @@
                 </div>
 
                 <p class="text-xs text-gray-500 text-center">
-                    Assumes ~60% lower cost for gpt-4o-mini vs gpt-4o on routable traffic. Actual savings vary by workload mix.
+                    Assumes ~60% lower cost for fast models vs frontier models on routable traffic. Actual savings vary by workload mix and provider (OpenAI, Anthropic, etc.).
                 </p>
             </div>
         </div>

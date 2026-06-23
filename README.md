@@ -15,15 +15,15 @@ Cascade is a high-performance, bare-metal C++ proxy that intercepts OpenAI SDK t
 graph TD
     A[User App / Python SDK] -->|HTTP POST| B(Cascade C++ Proxy)
     B --> C{ONNX Distilled Classifier}
-    C -->|> 90% Confidence| D[gpt-4o-mini]
-    C -->|< 90% Confidence| E[gpt-4o]
+    C -->|> 90% Confidence| D["Fast Model (e.g., gpt-4o-mini / Haiku)"]
+    C -->|< 90% Confidence| E["Frontier Model (e.g., gpt-4o / Sonnet 3.5)"]
     D --> F[Runtime Output Validator]
     F -->|Validation Fail| E
     F -->|Validation Pass| G[Return Response]
     E --> G
 ```
 
-1. **Transparent Integration:** A single-line `base_url` change in your OpenAI SDK (`http://localhost:8000/v1`).
+1. **Transparent Integration:** A single-line `base_url` change in your OpenAI or Anthropic SDK.
 
 ---
 
@@ -68,6 +68,10 @@ By eliminating the Python Global Interpreter Lock (GIL) and bypassing external n
 | LLM-as-a-Judge | Zero-Shot API Evaluation | ~850.0 ms | LLM TTFT |
 
 For deep technical methodology, refer to the [Cascade Whitepaper](docs/whitepaper.md).
+
+## Roadmap
+
+- Native Anthropic API support and custom local model routing (vLLM/Ollama).
 
 ## License
 
